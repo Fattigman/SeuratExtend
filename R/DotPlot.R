@@ -51,7 +51,9 @@
 #' @param border.width Width of the border around points. Default: 0.6.
 #' @param flip Whether to flip the coordinates of the plot. Default: FALSE.
 #' @param free_space Whether to allow free space in facets. Default: TRUE.
-#' @param show_grid Whether to show grid lines. Default: TRUE.
+#' @param method Whether to use z score or average expression. Default: mean.
+#' @param max.value Max value for color scale. Default: NULL.
+#' @param min.value Min value for color scale. Default: NULL.
 #' @param ... Additional arguments passed to theme().
 #' @return A ggplot object representing the dot plot.
 #' @details
@@ -86,33 +88,35 @@
 #' @export
 
 DotPlot2 <- function(
-    seu,
-    features,
-    group.by = NULL,
-    split.by = NULL,
-    split.by.method = "border",
-    nudge_factor = 0.35,
-    color_scheme = "A",
-    split.by.colors = "default",
-    center_color = NULL,
-    angle = NULL,
-    hjust = NULL,
-    vjust = NULL,
-    legend_position = "right",
-    plot.margin = margin(t = 5.5, r = 5.5, b = 5.5, l = 5.5),
-    panel.spacing = unit(5, "pt"),
-    strip.placement = "outside",
-    border = TRUE,
-    border.width = 0.6,
-    flip = FALSE,
-    free_space = TRUE,
-    show_grid = TRUE,
-    ...
+  seu,
+  features,
+  group.by = NULL,
+  split.by = NULL,
+  split.by.method = "border",
+  nudge_factor = 0.35,
+  color_scheme = c(low="white", high="darkblue"),
+  split.by.colors = "default",
+  center_color = NULL,
+  angle = NULL,
+  hjust = NULL,
+  vjust = NULL,
+  legend_position = "right",
+  plot.margin = margin(t = 5.5, r = 5.5, b = 5.5, l = 5.5),
+  panel.spacing = unit(5, "pt"),
+  strip.placement = "outside",
+  border = TRUE,
+  border.width = 0.6,
+  flip = FALSE,
+  free_space = TRUE,
+  show_grid = TRUE,
+  method = "zscore",
+  min.value = NULL,
+  max.value = NULL,
+  ...
 ) {
   library(ggplot2)
   library(reshape2)
   library(dplyr)
-
   # Validate features first
   features <- validate_features(features, seu)
 
@@ -152,9 +156,10 @@ DotPlot2 <- function(
 
   pct <- feature_percent(seu, tp, group.by = calc_group.by)
   pct.m <- melt(pct, value.name = "pct")
-  if(ncol(pct) == 1) {
-    warning("Only one identity present, the mean expression values will be used")
-    z <- CalcStats(seu, tp, group.by = calc_group.by, method = "mean") %>% as.matrix %>% melt(value.name = "zscore")
+
+  if (method == "mean" | ncol(pct) == 1) {
+    if (ncol(pct) == 1) warning("Only one identity present, the mean expression values will be used")
+    z <- CalcStats(seu, tp, group.by = calc_group.by, method = "mean") %>% as.matrix() %>% reshape2::melt(value.name = "zscore")
     lab_value <- "Average Expression"
   } else {
     z <- CalcStats(seu, tp, group.by = calc_group.by) %>% as.matrix %>% melt(value.name = "zscore")
@@ -193,7 +198,9 @@ DotPlot2 <- function(
     ToPlot$Var1 <- factor(ToPlot$Var1, levels = rev(unique(ToPlot$Var1)))
   }
 
-  value_range <- range(ToPlot$zscore)
+  lims <- range(ToPlot$zscore, na.rm = TRUE)
+  if (!is.null(min.value)) lims[1] <- min.value
+  if (!is.null(max.value)) lims[2] <- max.value
 
   # Determine default angle based on label lengths
   if (is.null(angle)) {
@@ -205,103 +212,48 @@ DotPlot2 <- function(
     angle <- if (max_label_length <= 2) 0 else 45
   }
 
-  # Check if angle is within the recommended range
-  if (abs(angle) > 90) {
-    warning("Angle should be between -90 and 90 degrees for optimal readability.")
-  }
-
-  # Determine hjust based on angle
-  if (is.null(hjust)) {
-    if (angle > 0) {
-      hjust <- 1  # Right align
-    } else if (angle < 0) {
-      hjust <- 0  # Left align
-    } else {
-      hjust <- 0.5  # Center align
-    }
-  }
-
-  # Determine vjust based on angle
-  if (is.null(vjust)) {
-    if (abs(angle) == 90) {
-      vjust <- 0.5
-    } else {
-      vjust <- 1
-    }
-  }
-
-  # Create the plot based on split.by, split.by.method, and border
-  if (!is.null(split.by)) {
-    if (split.by.method == "border") {
-      p <- ggplot(ToPlot, aes(x = group, y = Var1, size = pct, fill = zscore, color = split)) +
-        geom_point(shape = 21, stroke = border.width, position = position_nudge(x = ToPlot$nudge))
-      color_scale <- scale_fill_cont_auto(color_scheme, center_color = center_color, value_range = value_range)
-      split_scale <- scale_color_disc_auto(split.by.colors, n_splits)
-      color_lab <- lab_value
-    } else if (split.by.method == "color") {
-      p <- ggplot(ToPlot, aes(x = group, y = Var1, size = pct, color = split, alpha = zscore)) +
-        geom_point(position = position_nudge(x = ToPlot$nudge))
-      color_scale <- scale_color_disc_auto(split.by.colors, n_splits)
-      alpha_scale <- scale_alpha(range = c(0.1, 1))
-      color_lab <- split.by
-    }
-  } else {
-    if (border) {
-      p <- ggplot(ToPlot, aes(x = group, y = Var1, size = pct, fill = zscore)) +
-        geom_point(shape = 21, color = "black", stroke = border.width)
-      color_scale <- scale_fill_cont_auto(color_scheme, center_color = center_color, value_range = value_range)
-      color_lab <- lab_value
-    } else {
-      p <- ggplot(ToPlot, aes(x = group, y = Var1, size = pct, color = zscore)) +
-        geom_point()
-      color_scale <- scale_color_cont_auto(color_scheme, center_color = center_color, value_range = value_range)
-      color_lab <- lab_value
-    }
-  }
-
-  p <- p +
-    theme_bw() +
-    theme(
-      axis.title = element_blank(),
-      axis.text.x = element_text(angle = angle, hjust = hjust, vjust = vjust),
-      strip.background = element_rect(fill = NA, size = 0),
-      panel.spacing = panel.spacing,
-      strip.placement = strip.placement,
-      legend.position = legend_position
-    ) +
-    labs(size = "Percent\nexpressed", color = color_lab, fill = color_lab) +
-    theme(...) +
-    color_scale
-
   if (!is.null(split.by) && split.by.method == "border") {
-    p <- p + labs(color = split.by) + split_scale
+    p <- ggplot(ToPlot, aes(group, Var1, size=pct, fill=zscore, color=split)) +
+      geom_point(shape=21, stroke=border.width, position=position_nudge(x=ToPlot$nudge))
+    fill_scale <- scale_fill_gradient(low = color_scheme["low"], high = color_scheme["high"], limits = lims, oob = scales::squish)
+    p <- p + fill_scale + scale_color_disc_auto(split.by.colors, n_splits) + labs(color=split.by)
+  } else if (!is.null(split.by)) {
+    p <- ggplot(ToPlot, aes(group, Var1, size=pct, color=split, alpha=zscore)) +
+         geom_point(position=position_nudge(x=ToPlot$nudge))
+    p <- p + scale_color_disc_auto(split.by.colors, length(split_levels)) + scale_alpha(range=c(0.1,1))
+  } else if (border) {
+    p <- ggplot(ToPlot, aes(group, Var1, size=pct, fill=zscore)) + geom_point(shape=21, color="black", stroke=border.width)
+    fill_scale <- scale_fill_gradient(low = color_scheme["low"], high = color_scheme["high"], limits = lims, oob = scales::squish)
+    p <- p + fill_scale
+  } else {
+    p <- ggplot(ToPlot, aes(group, Var1, size=pct, color=zscore)) + geom_point()
+    p <- p + scale_color_gradient(low = color_scheme["low"], high = color_scheme["high"], limits = lims, oob = scales::squish)
   }
+
+  p <- p + theme_bw() + theme(
+    axis.title=element_blank(), 
+    axis.text.x=element_text(angle=angle %||% 45, hjust=hjust %||% 1, vjust=vjust %||% 1), 
+    strip.background=element_rect(fill=NA, size=0), 
+    panel.spacing=panel.spacing, 
+    strip.placement=strip.placement, 
+    legend.position=legend_position
+    ) + labs(size="Percent\nexpressed", color=lab_value, fill=lab_value) + theme(...)
+
+  if (!show_grid) p <- p + theme(panel.grid=element_blank())
+  if (flip) p <- p + coord_flip()
 
   if (!is.null(feature_groups)) {
-    facet_scales <- ifelse(flip, "free_x", "free_y")
-    facet_space <- ifelse(free_space, "free", "fixed")
-
+    facet_args <- list(scales=ifelse(flip,"free_x","free_y"), space=ifelse(free_space,"free","fixed"))
     if (flip) {
-      p <- p + facet_grid(cols = vars(FeatureGroup),
-                          scales = facet_scales,
-                          space = facet_space)
+      p <- p + facet_grid(cols=vars(FeatureGroup), scales=facet_args$scales, space=facet_args$space)
     } else {
-      p <- p + facet_grid(rows = vars(FeatureGroup),
-                          scales = facet_scales,
-                          space = facet_space)
+      p <- p + facet_grid(rows=vars(FeatureGroup), scales=facet_args$scales, space=facet_args$space)
     }
-  }
-
-  if(!show_grid) {
-    p <- p + theme(panel.grid = element_blank())
-  }
-
-  if (flip) {
-    p <- p + coord_flip()
   }
 
   return(p)
 }
+
 
 validate_features <- function(features, seu) {
   if (is.list(features)) {

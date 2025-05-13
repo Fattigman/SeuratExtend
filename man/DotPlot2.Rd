@@ -26,6 +26,9 @@ DotPlot2(
   flip = FALSE,
   free_space = TRUE,
   show_grid = TRUE,
+  method = "mean",
+  max.value = NULL,
+  min.value = NULL, 
   ...
 )
 }
@@ -100,6 +103,12 @@ Flexible color settings for the plot, accepting a variety of inputs:
 \item{free_space}{Whether to allow free space in facets. Default: TRUE.}
 
 \item{show_grid}{Whether to show grid lines. Default: TRUE.}
+
+\item{method}{Whether to calculate values using mean or z score. Default: mean.}
+
+\item{max.value}{Max value for color scale. Default: NULL.}
+
+\item{min.value}{Min value for color scale. Default: NULL.}
 
 \item{...}{Additional arguments passed to theme().}
 }
