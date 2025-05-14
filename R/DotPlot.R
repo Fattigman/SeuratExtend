@@ -153,3 +153,77 @@ DotPlot2 <- function(
 
   return(p)
 }
+
+validate_features <- function(features, seu) {
+  if (is.list(features)) {
+    # Process each group
+    validated_features <- lapply(features, function(f) {
+      existing <- intersect(f, rownames(seu))
+      if (length(existing) == 0) return(NULL)
+
+      # Warn about missing features
+      missing <- setdiff(f, rownames(seu))
+      if (length(missing) > 0) {
+        warning(sprintf("The following requested variables were not found: %s",
+                        paste(missing, collapse = ", ")))
+      }
+      return(existing)
+    })
+
+    # Remove empty groups
+    empty_groups <- names(validated_features)[sapply(validated_features, is.null)]
+    if (length(empty_groups) > 0) {
+      warning(sprintf("The following groups had no valid features and were removed: %s",
+                      paste(empty_groups, collapse = ", ")))
+      validated_features <- validated_features[!sapply(validated_features, is.null)]
+    }
+
+    if (length(validated_features) == 0) {
+      stop("No valid features found in any group")
+    }
+
+    # Check for duplicates across all groups
+    all_features <- unlist(validated_features)
+    duplicates <- all_features[duplicated(all_features)]
+    if (length(duplicates) > 0) {
+      warning(sprintf("Removing duplicate features (keeping first occurrence): %s",
+                      paste(unique(duplicates), collapse = ", ")))
+      # Keep first occurrence of each feature
+      seen <- c()
+      validated_features <- lapply(validated_features, function(f) {
+        unique_f <- setdiff(f, seen)
+        seen <<- c(seen, unique_f)
+        return(unique_f)
+      })
+      # Remove any groups that became empty after duplicate removal
+      validated_features <- validated_features[sapply(validated_features, length) > 0]
+    }
+
+    return(validated_features)
+
+  } else {
+    # Process single vector of features
+    existing <- intersect(features, rownames(seu))
+
+    if (length(existing) == 0) {
+      stop("No valid features found")
+    }
+
+    # Warn about missing features
+    missing <- setdiff(features, rownames(seu))
+    if (length(missing) > 0) {
+      warning(sprintf("The following requested variables were not found: %s",
+                      paste(missing, collapse = ", ")))
+    }
+
+    # Handle duplicates
+    duplicates <- features[duplicated(features)]
+    if (length(duplicates) > 0) {
+      warning(sprintf("Removing duplicate features (keeping first occurrence): %s",
+                      paste(unique(duplicates), collapse = ", ")))
+      existing <- unique(existing)
+    }
+
+    return(existing)
+  }
+}
