@@ -120,34 +120,42 @@ DotPlot2 <- function(
   if (!is.null(max.value)) lims[2] <- max.value
 
   if (!is.null(split.by) && split.by.method == "border") {
-    p <- ggplot2::ggplot(ToPlot, aes(group, Var1, size=pct, fill=zscore, color=split)) +
-      ggplot2::geom_point(shape=21, stroke=border.width, position=ggplot2::position_nudge(x=ToPlot$nudge))
-    fill_scale <- ggplot2::scale_fill_gradient(low = color_scheme["low"], high = color_scheme["high"], limits = lims, oob = scales::squish)
-    p <- p + fill_scale + scale_color_disc_auto(split.by.colors, n_splits) + ggplot2::labs(color=split.by)
+    p <- ggplot(ToPlot, aes(group, Var1, size=pct, fill=zscore, color=split)) +
+      geom_point(shape=21, stroke=border.width, position=position_nudge(x=ToPlot$nudge))
+    fill_scale <- scale_fill_gradient(low = color_scheme["low"], high = color_scheme["high"], limits = lims, oob = scales::squish)
+    p <- p + fill_scale + scale_color_disc_auto(split.by.colors, n_splits) + labs(color=split.by)
   } else if (!is.null(split.by)) {
-    p <- ggplot2::ggplot(ToPlot, aes(group, Var1, size=pct, color=split, alpha=zscore)) +
-      ggplot2::geom_point(position=ggplot2::position_nudge(x=ToPlot$nudge))
-    p <- p + scale_color_disc_auto(split.by.colors, length(split_levels)) + ggplot2::scale_alpha(range=c(0.1,1))
+    p <- ggplot(ToPlot, aes(group, Var1, size=pct, color=split, alpha=zscore)) +
+      geom_point(position=position_nudge(x=ToPlot$nudge))
+    p <- p + scale_color_disc_auto(split.by.colors, length(split_levels)) + scale_alpha(range=c(0.1,1))
   } else if (border) {
-    p <- ggplot2::ggplot(ToPlot, aes(group, Var1, size=pct, fill=zscore)) + ggplot2::geom_point(shape=21, color="black", stroke=border.width)
-    fill_scale <- ggplot2::scale_fill_gradient(low = color_scheme["low"], high = color_scheme["high"], limits = lims, oob = scales::squish)
+    p <- ggplot(ToPlot, aes(group, Var1, size=pct, fill=zscore)) + geom_point(shape=21, color="black", stroke=border.width)
+    fill_scale <- scale_fill_gradient(low = color_scheme["low"], high = color_scheme["high"], limits = lims, oob = scales::squish)
     p <- p + fill_scale
   } else {
-    p <- ggplot2::ggplot(ToPlot, aes(group, Var1, size=pct, color=zscore)) + ggplot2::geom_point()
-    p <- p + ggplot2::scale_color_gradient(low = color_scheme["low"], high = color_scheme["high"], limits = lims, oob = scales::squish)
+    p <- ggplot(ToPlot, aes(group, Var1, size=pct, color=zscore)) + geom_point()
+    p <- p + scale_color_gradient(low = color_scheme["low"], high = color_scheme["high"], limits = lims, oob = scales::squish)
   }
 
-  p <- p + ggplot2::theme_bw() + ggplot2::theme(axis.title=ggplot2::element_blank(), axis.text.x=ggplot2::element_text(angle=angle %||% 45, hjust=hjust %||% 1, vjust=vjust %||% 1), strip.background=ggplot2::element_rect(fill=NA, size=0), panel.spacing=panel.spacing, strip.placement=strip.placement, legend.position=legend_position) + ggplot2::labs(size="Percent\nexpressed", color=lab_value, fill=lab_value) + ggplot2::theme(...)
+  p <- p + theme_bw() + theme(
+    axis.title=element_blank(), 
+    axis.text.x=element_text(angle=angle %||% 45, hjust=hjust %||% 1, 
+    vjust=vjust %||% 1), 
+    strip.background=element_rect(fill=NA, size=0),
+    panel.spacing=panel.spacing, 
+    strip.placement=strip.placement, 
+    legend.position=legend_position) + 
+    labs(size="Percent\nexpressed", color=lab_value, fill="orig.ident") + theme(...)
 
-  if (!show_grid) p <- p + ggplot2::theme(panel.grid=ggplot2::element_blank())
-  if (flip) p <- p + ggplot2::coord_flip()
+  if (!show_grid) p <- p + theme(panel.grid=element_blank())
+  if (flip) p <- p + coord_flip()
 
   if (!is.null(feature_groups)) {
     facet_args <- list(scales=ifelse(flip,"free_x","free_y"), space=ifelse(free_space,"free","fixed"))
     if (flip) {
-      p <- p + ggplot2::facet_grid(cols=ggplot2::vars(FeatureGroup), scales=facet_args$scales, space=facet_args$space)
+      p <- p + facet_grid(cols=vars(FeatureGroup), scales=facet_args$scales, space=facet_args$space)
     } else {
-      p <- p + ggplot2::facet_grid(rows=ggplot2::vars(FeatureGroup), scales=facet_args$scales, space=facet_args$space)
+      p <- p + facet_grid(rows=vars(FeatureGroup), scales=facet_args$scales, space=facet_args$space)
     }
   }
 
