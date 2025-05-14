@@ -145,7 +145,7 @@ DotPlot2 <- function(
     panel.spacing=panel.spacing, 
     strip.placement=strip.placement, 
     legend.position=legend_position) + 
-    labs(size="Percent\nexpressed", color=lab_value, fill="orig.ident") + theme(...)
+    labs(size="Percent\nexpressed", color="orig.ident", fill=lab_value) + theme(...)
 
   if (!show_grid) p <- p + theme(panel.grid=element_blank())
   if (flip) p <- p + coord_flip()
